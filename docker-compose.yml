@@ -2,7 +2,7 @@ version: '3'
 
 services:
   jupyter:
-    image: jupyter/datascience-notebook:latest
+    image: jupyter/scipy-notebook:latest
     ports:
       - 8888:8888
     volumes:
