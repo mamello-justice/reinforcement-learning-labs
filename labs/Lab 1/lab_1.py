@@ -1,6 +1,6 @@
 ###
 # Group Members
-# Name:Student Number
+# Mamello:1851317
 # Name:Student Number
 # Name:Student Number
 # Name:Student Number
@@ -10,6 +10,26 @@ import numpy as np
 from environments.gridworld import GridworldEnv
 import timeit
 import matplotlib.pyplot as plt
+
+def print_trajectory(trajectory):
+    output = ""
+    for row in trajectory:
+        row_output = ""
+        for action in row:
+            if action == -1:
+                row_output += " o "
+            elif action == 0:
+                row_output += " U "
+            elif action == 1:
+                row_output += " R "
+            elif action == 2:
+                row_output += " D "
+            else:
+                row_output += " L "
+
+        output += row_output.strip() + "\n"
+    output = output[:-2] + "X"      
+    print(output)
 
 
 def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
@@ -101,6 +121,7 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
 
 
 def main():
+    print("*" * 5 + " Random policy trajectory " + "*" * 5)
     # Create Gridworld environment with size of 5 by 5, with the goal at state 24. Reward for getting to goal state is 0, and each step reward is -1
     env = GridworldEnv(shape=[5, 5], terminal_states=[
                        24], terminal_reward=0, step_reward=-1)
@@ -109,7 +130,19 @@ def main():
     env.render()
     print("")
 
-    # TODO: generate random policy
+    policy = np.full((25, 4), 0.25)
+    trajectory = np.full((25), -1)
+    while True:
+        action = np.random.choice(np.arange(4), size=1, replace=False, p=policy[state])[0]
+        
+        trajectory[state] = action
+        state, reward, done, _ = env.step(action)
+
+        if done:
+            break
+
+    print_trajectory(trajectory.reshape((5,5)))
+    print("")
 
     print("*" * 5 + " Policy evaluation " + "*" * 5)
     print("")
