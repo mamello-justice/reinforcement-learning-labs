@@ -50,7 +50,40 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
     Returns:
         Vector of length env.observation_space.n representing the value function.
     """
-    raise NotImplementedError
+    num_states = np.prod(env.shape)
+    
+    # Equal probability of taking each action in a state
+    prob_action = np.full(env.action_space.n, 1) / env.action_space.n
+    
+    # Restructured P (tuple inside array bad)
+    P = [[x[0] for x in env.P[s].values()] for s in range(num_states)]
+    
+    # num_states x num_actions matrix representing probability of action actually happening given 
+    # that it is the chosen action
+    prob = np.array([[x[0] for x in s] for s in P], dtype=np.float32)
+    
+    # num_states x num_actions matrix representing next_state when taking action from a state
+    next_state = np.array([[x[1] for x in s] for s in P])
+    
+    # num_states x num_actions matrix representing reward when taking an action on a state
+    reward = np.array([[x[2] for x in s] for s in P], dtype=np.float32)
+    
+    # Initialize V to zeros    
+    V = np.zeros(num_states, dtype=np.float32)
+
+    while True:
+        delta = 0.0
+
+        for s in range(num_states):
+            v = V[s]
+            
+            V[s] = (prob_action * prob[s]).dot(reward[s] + discount_factor * V[next_state[s]])
+            
+            delta = np.maximum(delta, abs(v - V[s]))
+
+        if delta < theta:
+            break
+    return V
 
 
 def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_factor=1.0):
@@ -147,10 +180,9 @@ def main():
     print("*" * 5 + " Policy evaluation " + "*" * 5)
     print("")
 
-    # TODO: evaluate random policy
-    v = []
-
-    # TODO: print state value for each state, as grid shape
+    v = policy_evaluation(env, policy)
+    print(v.reshape(env.shape))
+    print()
 
     # Test: Make sure the evaluated policy is what we expected
     expected_v = np.array([-106.81, -104.81, -101.37, -97.62, -95.07,
