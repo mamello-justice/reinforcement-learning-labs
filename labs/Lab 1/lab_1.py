@@ -52,9 +52,6 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
     """
     num_states = np.prod(env.shape)
     
-    # Equal probability of taking each action in a state
-    prob_action = np.full(env.action_space.n, 1) / env.action_space.n
-    
     # Restructured P (tuple inside array bad)
     P = [[x[0] for x in env.P[s].values()] for s in range(num_states)]
     
@@ -77,7 +74,7 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
         for s in range(num_states):
             v = V[s]
             
-            V[s] = (prob_action * prob[s]).dot(reward[s] + discount_factor * V[next_state[s]])
+            V[s] = (policy[s] * prob[s]).dot(reward[s] + discount_factor * V[next_state[s]])
             
             delta = np.maximum(delta, abs(v - V[s]))
 
