@@ -181,6 +181,9 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
     Returns:
         A tuple (policy, V) of the optimal policy and the optimal value function.
     """
+    num_states = np.prod(env.shape)
+    
+    prob, next_state, reward = transformed_transition_dynamics(env)
 
     def one_step_lookahead(state, V):
         """
@@ -193,9 +196,31 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
         Returns:
             A vector of length env.action_space.n containing the expected value of each action.
         """
-        raise NotImplementedError
+        return prob[state] * (reward[state] + discount_factor * V[next_state[state]])
+    
+    
+    # Initialize V[s] to zeros
+    V = np.zeros(num_states)
+    
+    while True:
+        delta = 0
+        
+        for s in range(num_states):
+            v = V[s]
+            
+            V[s] = np.max(one_step_lookahead(s, V))
+            
+            delta = np.maximum(delta, abs(v - V[s]))
+        
+        if delta < theta:
+            break
+    
+    policy = np.zeros((num_states, 4))
+    for s in range(num_states):
+        max_action = np.argmax(one_step_lookahead(s, V))
+        policy[s, max_action] = 1
 
-    raise NotImplementedError
+    return policy, V
 
 
 def main():
@@ -239,13 +264,13 @@ def main():
 
     print("*" * 5 + " Policy iteration " + "*" * 5)
     print("")
-
+    
     policy, v = policy_iteration(env)
     print_trajectory(policy.reshape((env.shape[0], env.shape[1], -1)).argmax(axis=2))
     print("")
     print(v.reshape(env.shape))
     print("")
-
+    
     # Test: Make sure the value function is what we expected
     expected_v = np.array([-8., -7., -6., -5., -4.,
                            -7., -6., -5., -4., -3.,
@@ -256,12 +281,12 @@ def main():
 
     print("*" * 5 + " Value iteration " + "*" * 5)
     print("")
-    # TODO: use  value iteration to compute optimal policy and state values
-    policy, v = [], []  # call value_iteration
-
-    # TODO Print out best action for each state in grid shape
-
-    # TODO: print state value for each state, as grid shape
+    
+    policy, v = value_iteration(env)
+    print_trajectory(policy.reshape((env.shape[0], env.shape[1], -1)).argmax(axis=2))
+    print("")
+    print(v.reshape(env.shape))
+    print("")
 
     # Test: Make sure the value function is what we expected
     expected_v = np.array([-8., -7., -6., -5., -4.,
