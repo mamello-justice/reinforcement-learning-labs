@@ -48,7 +48,7 @@ def transformed_transition_dynamics(env):
         next_state: represents new states when taking action on a particular state
         reward: represents reward when taking action on a particular state
     """
-    num_states = np.prod(env.shape)
+    num_states = env.observation_space.n
     
     # Drop done axis and convert to NDArray
     P = np.array([[x[0][:-1] for x in env.P[s].values()] for s in range(num_states)])
@@ -77,7 +77,7 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
     Returns:
         Vector of length env.observation_space.n representing the value function.
     """
-    num_states = np.prod(env.shape)
+    num_states = env.observation_space.n
     
     prob, next_state, reward = transformed_transition_dynamics(env)
     
@@ -120,7 +120,8 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
         V is the value function for the optimal policy.
 
     """
-    num_states = np.prod(env.shape)
+    num_states = env.observation_space.n
+    num_actions = env.action_space.n
     
     prob, next_state, reward = transformed_transition_dynamics(env)
 
@@ -142,7 +143,7 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
     V = np.zeros(num_states)
     
     # Initialize policy randomly
-    policy = random_policy((num_states, 4))
+    policy = random_policy((num_states, num_actions))
     
     while True:
         # Policy evaluation
@@ -155,7 +156,7 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
             action = np.argmax(policy[s])
             values = one_step_lookahead(s, V)
             max_action = values == np.max(values)
-            policy[s] = np.zeros(4)
+            policy[s] = np.zeros(num_actions)
             policy[s, max_action] = 1 / np.sum(max_action)
             
             if not max_action[action]:
@@ -198,7 +199,8 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
     Returns:
         A tuple (policy, V) of the optimal policy and the optimal value function.
     """
-    num_states = np.prod(env.shape)
+    num_states = env.observation_space.n
+    num_actions = env.action_space.n
     
     prob, next_state, reward = transformed_transition_dynamics(env)
 
@@ -232,7 +234,7 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
         if delta < theta:
             break
     
-    policy = np.zeros((num_states, 4))
+    policy = np.zeros((num_states, num_actions))
     for s in range(num_states):
         max_action = np.argmax(one_step_lookahead(s, V))
         policy[s, max_action] = 1
@@ -260,11 +262,14 @@ def main():
     print("")
     env.render()
     print("")
+    
+    num_states = env.observation_space.n
+    num_actions = env.action_space.n
 
-    policy = np.full((25, 4), 0.25)
-    trajectory = np.full((25), -1)
+    policy = np.full((num_states, num_actions), 1 / num_actions)
+    trajectory = np.full((num_states), -1)
     while True:
-        action = np.random.choice(np.arange(4), size=1, replace=False, p=policy[state])[0]
+        action = np.random.choice(np.arange(num_actions), size=1, replace=False, p=policy[state])[0]
         
         trajectory[state] = action
         state, reward, done, _ = env.step(action)
@@ -272,7 +277,7 @@ def main():
         if done:
             break
 
-    print_trajectory(trajectory.reshape((5,5)))
+    print_trajectory(trajectory.reshape(env.shape))
     print("")
 
     print("*" * 5 + " Policy evaluation " + "*" * 5)
