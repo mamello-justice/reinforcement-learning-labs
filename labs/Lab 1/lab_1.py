@@ -8,8 +8,10 @@
 
 import numpy as np
 from environments.gridworld import GridworldEnv
+import inspect
 import timeit
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 
 def print_trajectory(trajectory):
     output = ""
@@ -164,6 +166,21 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
 
     return policy, V
 
+POLICY_ITERATION_SETUP = f'''
+import numpy as np
+from environments.gridworld import GridworldEnv
+
+{inspect.getsource(transformed_transition_dynamics)}
+
+{inspect.getsource(random_policy)}
+
+{inspect.getsource(policy_evaluation)}
+
+{inspect.getsource(policy_iteration)}
+
+env = GridworldEnv(shape=[5, 5], terminal_states=[24], terminal_reward=0, step_reward=-1)
+'''
+
 
 def value_iteration(env, theta=0.0001, discount_factor=1.0):
     """
@@ -222,6 +239,17 @@ def value_iteration(env, theta=0.0001, discount_factor=1.0):
 
     return policy, V
 
+
+VALUE_ITERATION_SETUP = f'''
+import numpy as np
+from environments.gridworld import GridworldEnv
+
+{inspect.getsource(transformed_transition_dynamics)}
+
+{inspect.getsource(value_iteration)}
+
+env = GridworldEnv(shape=[5, 5], terminal_states=[24], terminal_reward=0, step_reward=-1)
+'''
 
 def main():
     print("*" * 5 + " Random policy trajectory " + "*" * 5)
@@ -295,7 +323,38 @@ def main():
                            -5., -4., -3., -2., -1.,
                            -4., -3., -2., -1., 0.])
     np.testing.assert_array_almost_equal(v, expected_v, decimal=1)
-
+    
+    discount_factors = np.logspace(-0.2, 0, num=30)
+    runs = 10
+    
+    policy_iteration_times = np.zeros(len(discount_factors))
+    value_iteration_times = np.zeros(len(discount_factors))
+    
+    for i, discount in enumerate(discount_factors):
+        policy_iteration_times[i] = np.mean(timeit.repeat(setup = POLICY_ITERATION_SETUP,
+                        stmt = f"policy_iteration(env = env, discount_factor = {discount})",
+                        repeat = runs,
+                        number = 1))
+        
+        value_iteration_times[i] = np.mean(timeit.repeat(setup = VALUE_ITERATION_SETUP,
+                        stmt = f"value_iteration(env = env, discount_factor = {discount})",
+                        repeat = runs,
+                        number = 1))
+        
+    width = 0.005
+    
+    fig, ax = plt.subplots()
+    ax.bar(discount_factors - width / 2, policy_iteration_times, width = width, label = "Policy Iteration")
+    ax.bar(discount_factors + width / 2, value_iteration_times, width = width, label = "Value Iteration")
+    
+    ax.set_ylabel('Average time (seconds)')
+    ax.set_xlabel('Discount factors')
+    ax.set_xticks(discount_factors)
+    ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+    ax.legend()
+    
+    plt.show()
+    
 
 if __name__ == "__main__":
     main()
