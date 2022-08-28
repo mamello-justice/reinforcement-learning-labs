@@ -31,6 +31,31 @@ def print_trajectory(trajectory):
     output = output[:-2] + "X"      
     print(output)
 
+def transformed_transition_dynamics(env):
+    """
+    Args:
+        env: OpenAI environment.
+            env.P represents the transition probabilities of the environment.
+            env.P[s][a] is a list of transition tuples (prob, next_state, reward, done).
+            env.observation_space.n is a number of states in the environment.
+            env.action_space.n is a number of actions in the environment.
+            
+    Returns:
+        A tuple (prob, next_state, reward) of (env.observation_space.n x env.action_space.n) matrices
+        prob: represents deterministic probabilities
+        next_state: represents new states when taking action on a particular state
+        reward: represents reward when taking action on a particular state
+    """
+    num_states = np.prod(env.shape)
+    
+    # Drop done axis and convert to NDArray
+    P = np.array([[x[0][:-1] for x in env.P[s].values()] for s in range(num_states)])
+    
+    prob = P[:, :, 0].astype(dtype=np.float32)
+    next_state = P[:, :, 1].astype(dtype=np.uint8)
+    reward = P[:, :, 2].astype(dtype=np.float32)
+        
+    return prob, next_state, reward
 
 def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
     """
@@ -52,18 +77,7 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
     """
     num_states = np.prod(env.shape)
     
-    # Restructured P (tuple inside array bad)
-    P = [[x[0] for x in env.P[s].values()] for s in range(num_states)]
-    
-    # num_states x num_actions matrix representing probability of action actually happening given 
-    # that it is the chosen action
-    prob = np.array([[x[0] for x in s] for s in P], dtype=np.float32)
-    
-    # num_states x num_actions matrix representing next_state when taking action from a state
-    next_state = np.array([[x[1] for x in s] for s in P])
-    
-    # num_states x num_actions matrix representing reward when taking an action on a state
-    reward = np.array([[x[2] for x in s] for s in P], dtype=np.float32)
+    prob, next_state, reward = transformed_transition_dynamics(env)
     
     # Initialize V to zeros    
     V = np.zeros(num_states, dtype=np.float32)
@@ -82,6 +96,10 @@ def policy_evaluation(env, policy, discount_factor=1.0, theta=0.00001):
             break
     return V
 
+def random_policy(shape: tuple[int, int]):
+    random_values = np.random.randint(1, 5, shape)
+    sums = np.tile(random_values.sum(axis=1), (shape[1], 1)).transpose()
+    return random_values / sums
 
 def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_factor=1.0):
     """
@@ -100,6 +118,9 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
         V is the value function for the optimal policy.
 
     """
+    num_states = np.prod(env.shape)
+    
+    prob, next_state, reward = transformed_transition_dynamics(env)
 
     def one_step_lookahead(state, V):
         """
@@ -112,9 +133,36 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
         Returns:
             A vector of length env.action_space.n containing the expected value of each action.
         """
-        raise NotImplementedError
+        return prob[state] * (reward[state] + discount_factor * V[next_state[state]])
+    
+    
+    # Initialize V[s] to zeros
+    V = np.zeros(num_states)
+    
+    # Initialize policy randomly
+    policy = random_policy((num_states, 4))
+    
+    while True:
+        # Policy evaluation
+        V = policy_evaluation_fn(env, policy, discount_factor)
+        
+        # Policy improvement
+        policy_stable = True
+        
+        for s in range(num_states):
+            action = np.argmax(policy[s])
+            values = one_step_lookahead(s, V)
+            max_action = values == np.max(values)
+            policy[s] = np.zeros(4)
+            policy[s, max_action] = 1 / np.sum(max_action)
+            
+            if not max_action[action]:
+                policy_stable = False
+        
+        if policy_stable:
+            break
 
-    raise NotImplementedError
+    return policy.reshape((env.shape[0], env.shape[1], -1)), V.reshape(env.shape)
 
 
 def value_iteration(env, theta=0.0001, discount_factor=1.0):
@@ -179,7 +227,7 @@ def main():
 
     v = policy_evaluation(env, policy)
     print(v.reshape(env.shape))
-    print()
+    print("")
 
     # Test: Make sure the evaluated policy is what we expected
     expected_v = np.array([-106.81, -104.81, -101.37, -97.62, -95.07,
