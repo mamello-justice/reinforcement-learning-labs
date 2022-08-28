@@ -162,7 +162,7 @@ def policy_iteration(env, policy_evaluation_fn=policy_evaluation, discount_facto
         if policy_stable:
             break
 
-    return policy.reshape((env.shape[0], env.shape[1], -1)), V.reshape(env.shape)
+    return policy, V
 
 
 def value_iteration(env, theta=0.0001, discount_factor=1.0):
@@ -239,12 +239,12 @@ def main():
 
     print("*" * 5 + " Policy iteration " + "*" * 5)
     print("")
-    # TODO: use  policy improvement to compute optimal policy and state values
-    policy, v = [], []  # call policy_iteration
 
-    # TODO Print out best action for each state in grid shape
-
-    # TODO: print state value for each state, as grid shape
+    policy, v = policy_iteration(env)
+    print_trajectory(policy.reshape((env.shape[0], env.shape[1], -1)).argmax(axis=2))
+    print("")
+    print(v.reshape(env.shape))
+    print("")
 
     # Test: Make sure the value function is what we expected
     expected_v = np.array([-8., -7., -6., -5., -4.,
