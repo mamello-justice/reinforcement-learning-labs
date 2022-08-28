@@ -352,6 +352,7 @@ def main():
     ax.bar(discount_factors - width / 2, policy_iteration_times, width = width, label = "Policy Iteration")
     ax.bar(discount_factors + width / 2, value_iteration_times, width = width, label = "Value Iteration")
     
+    ax.set_title('Average time taken by policy and value iteration for different discount factors')
     ax.set_ylabel('Average time (seconds)')
     ax.set_xlabel('Discount factors')
     ax.set_xticks(discount_factors)
