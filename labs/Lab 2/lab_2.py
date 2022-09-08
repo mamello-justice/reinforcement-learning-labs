@@ -44,8 +44,8 @@ def blackjack_plot_value_function(V, title="Value Function", suptitle="MC Blackj
     fig = plt.figure(figsize=(20, 15))
     st = fig.suptitle(suptitle, fontsize="large")
 
-    def plot_surface(X, Y, Z, title, plot_positon=111):
-        ax = fig.add_subplot(plot_positon, projection='3d')
+    def plot_surface(X, Y, Z, title, plot_position=111):
+        ax = fig.add_subplot(plot_position, projection='3d')
         surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
                                cmap=matplotlib.cm.coolwarm, vmin=-1.0, vmax=1.0)
         ax.set_xlabel('Player Sum')
@@ -219,7 +219,7 @@ def mc_control_epsilon_greedy(env, num_episodes, discount_factor=1.0, epsilon=0.
         env: OpenAI gym environment.
         num_episodes: Number of episodes to sample.
         discount_factor: Gamma discount factor.
-        epsilon: Chance the sample a random action. Float betwen 0 and 1.
+        epsilon: Chance the sample a random action. Float between 0 and 1.
         print_: print every num of episodes - don't print anything if False
     Returns:
         A tuple (Q, policy).
@@ -240,7 +240,7 @@ def SARSA(env, num_episodes, discount_factor=1.0, epsilon=0.1, alpha=0.5, print_
         num_episodes: Number of episodes to run for.
         discount_factor: Gamma discount factor.
         alpha: TD learning rate.
-        epsilon: Chance the sample a random action. Float betwen 0 and 1.
+        epsilon: Chance the sample a random action. Float between 0 and 1.
         print_: print every num of episodes - don't print anything if False
 
     Returns:
@@ -276,7 +276,7 @@ def q_learning(env, num_episodes, discount_factor=1.0, epsilon=0.05, alpha=0.5, 
         num_episodes: Number of episodes to run for.
         discount_factor: Gamma discount factor.
         alpha: TD learning rate.
-        epsilon: Chance the sample a random action. Float betwen 0 and 1.
+        epsilon: Chance the sample a random action. Float between 0 and 1.
         print_: print every num of episodes - don't print anything if False
 
     Returns:

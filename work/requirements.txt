@@ -1,5 +1,7 @@
 asttokens==2.0.7
+autopep8==1.7.0
 backcall==0.2.0
+cloudpickle==2.1.0
 colorama==0.4.5
 cycler==0.11.0
 debugpy==1.6.2
@@ -7,6 +9,9 @@ decorator==5.1.1
 entrypoints==0.4
 executing==0.9.1
 fonttools==4.37.1
+gym==0.25.2
+gym-notices==0.0.8
+imageio-ffmpeg==0.4.7
 ipykernel==6.15.1
 ipython==8.4.0
 jedi==0.18.1
@@ -24,6 +29,8 @@ Pillow==9.2.0
 prompt-toolkit==3.0.30
 psutil==5.9.1
 pure-eval==0.2.2
+pycodestyle==2.9.1
+pygame==2.1.2
 Pygments==2.12.0
 pyparsing==3.0.9
 python-dateutil==2.8.2
@@ -31,6 +38,7 @@ pywin32==304
 pyzmq==23.2.0
 six==1.16.0
 stack-data==0.3.0
+toml==0.10.2
 tornado==6.2
 traitlets==5.3.0
 wcwidth==0.2.5
