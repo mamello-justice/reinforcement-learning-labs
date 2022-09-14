@@ -1,7 +1,12 @@
+import argparse, os, subprocess
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
 from tqdm import trange
+
+
+# Mamello:1851317
 
 
 def random_argmax(array):
@@ -45,10 +50,10 @@ def sarsa(env: gym.Env, _lambda, episodes, gamma=1, alpha=0.5, epsilon=0.1, seed
                                        action_prime] - Q[state, action]
             e[state, action] += 1
 
-            for s in range(env.observation_space.n):
+            for t in range(env.observation_space.n):
                 for a in range(env.action_space.n):
-                    Q[s, a] += alpha * sigma * e[s, a]
-                    e[s, a] *= gamma * _lambda
+                    Q[t, a] += alpha * sigma * e[t, a]
+                    e[t, a] *= gamma * _lambda
 
             state = state_prime
             action = action_prime
@@ -65,17 +70,68 @@ def sarsa(env: gym.Env, _lambda, episodes, gamma=1, alpha=0.5, epsilon=0.1, seed
 
     return Q
 
+def write_video():
+    image_width = 12
+    image_height = 4
+    lambdas = [0.0, 0.3, 0.5, 0.7, 0.9]
+    
+    df = np.array([np.genfromtxt(f"./data/Q_lambda_{_lambda}.csv", delimiter=",") for _lambda in lambdas])
+    num_lambdas, num_episodes, num_states = df.shape
+    
+    fig = plt.figure(figsize=(25, 5))
+    
+    # Get Dimensions
+    for i in range(num_lambdas):
+        img = df[i, 0].reshape(image_height, -1)
+        fig.add_subplot(1, num_lambdas, i+1)
+        plt.axis("off")
+        plt.title(f"λ = {lambdas[i]}")
+        plt.imshow(img)
+    fig.canvas.draw()
+    image = cv2.cvtColor(np.asarray(fig.canvas.buffer_rgba()), cv2.COLOR_RGBA2BGR)
+    fig.clear()
+    
+    height, width, layers = image.shape
+    video = cv2.VideoWriter("./videos/td.avi", 0, 5, (width,height))
+    
+    for j in trange(num_episodes):
+        for i in range(num_lambdas):
+            img = df[i, j].reshape(image_height, -1)
+            fig.add_subplot(1, num_lambdas, i+1)
+            plt.axis("off")
+            plt.title(f"λ = {lambdas[i]}")
+            plt.imshow(img)
+        fig.canvas.draw()
+        video.write(cv2.cvtColor(np.asarray(fig.canvas.buffer_rgba()), cv2.COLOR_RGBA2BGR))
+        fig.clear()
+
+    cv2.destroyAllWindows()
+    video.release()
+
 
 def main():
-    env = gym.make('CliffWalking-v0')
+    parser = argparse.ArgumentParser(description='Temporal Difference Learning Video.')
+    parser.add_argument('--steps', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--video', action=argparse.BooleanOptionalAction)
+    
+    args = parser.parse_args()
+    
+        
+    args_vars = vars(args)
+    
+    if (args_vars['steps']):
+        env = gym.make('CliffWalking-v0')
 
-    lambdas = [0.0, 0.3, 0.5, 0.7, 0.9]
-    episodes = 500
+        lambdas = [0.0, 0.3, 0.5, 0.7, 0.9]
+        episodes = 500
 
-    for _lambda in lambdas:
-        sarsa(env, _lambda, episodes)
+        for _lambda in lambdas:
+            sarsa(env, _lambda, episodes)
 
-    env.close()
+        env.close()
+        
+    if (args_vars['video']):
+        write_video()
 
 if __name__ == '__main__':
     main()
