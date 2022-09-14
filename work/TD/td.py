@@ -94,7 +94,7 @@ def write_video():
     height, width, layers = image.shape
     video = cv2.VideoWriter("./videos/td.avi", 0, 5, (width,height))
     
-    for j in trange(num_episodes):
+    for j in trange(num_episodes, desc="video"):
         for i in range(num_lambdas):
             img = df[i, j].reshape(image_height, -1)
             fig.add_subplot(1, num_lambdas, i+1)
