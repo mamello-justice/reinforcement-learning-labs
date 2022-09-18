@@ -18,12 +18,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import gym
 
+try:
+    # NB: Install tqdm by `pip install tqdm` to visualize the progress of the training
+    from tqdm import trange
+except ModuleNotFoundError:
+    trange = range
+
 EpisodeStats = namedtuple("Stats", ["episode_lengths", "episode_rewards"])
 
 
 # Helper functions
 ##################
-def blackjack_plot_value_function(V, title="Value Function", suptitle="MC Blackjack-v0"):
+def blackjack_plot_value_function(V, title="Value Function", suptitle="MC Blackjack-v1"):
     """
     Plots the value function as a surface plot.
     """
@@ -44,8 +50,8 @@ def blackjack_plot_value_function(V, title="Value Function", suptitle="MC Blackj
     fig = plt.figure(figsize=(20, 15))
     st = fig.suptitle(suptitle, fontsize="large")
 
-    def plot_surface(X, Y, Z, title, plot_position=111):
-        ax = fig.add_subplot(plot_position, projection='3d')
+    def plot_surface(X, Y, Z, title, plot_positon=111):
+        ax = fig.add_subplot(plot_positon, projection='3d')
         surf = ax.plot_surface(X, Y, Z, rstride=1, cstride=1,
                                cmap=matplotlib.cm.coolwarm, vmin=-1.0, vmax=1.0)
         ax.set_xlabel('Player Sum')
@@ -161,7 +167,23 @@ def blackjack_sample_policy(observation):
     """
     A policy that sticks if the player score is >= 20 and hits otherwise.
     """
-    raise NotImplementedError
+    return 0 if (observation[0] >= 20) else 1
+
+
+def generate_episode(env, policy_fn):
+    episode = []
+
+    observation, reward, done = env.reset()[0], None, False
+
+    while not done:
+        action = policy_fn(observation)
+        episode.append((observation, action, reward))
+
+        observation, reward, done, _, _ = env.step(action)
+
+    episode.append((None, None, reward))
+
+    return episode
 
 
 def mc_prediction(policy, env, num_episodes, discount_factor=1.0, max_steps_per_episode=9999, print_=False):
@@ -181,12 +203,46 @@ def mc_prediction(policy, env, num_episodes, discount_factor=1.0, max_steps_per_
         The state is a tuple and the value is a float.
     """
 
-    raise NotImplementedError
+    def get_state_dict(env, initial_value):
+        player_sum, dealer_card, usable_ace = env.observation_space
+
+        D = dict()
+
+        for x in range(player_sum.start, player_sum.n + player_sum.start):
+            for y in range(dealer_card.start, dealer_card.n + dealer_card.start):
+                for z in range(usable_ace.start, usable_ace.n + usable_ace.start):
+                    D[(x, y, z)] = initial_value
+
+        return D
+
+    V = get_state_dict(env, 0.0)
+    N = get_state_dict(env, 0)
+
+    for ep in trange(num_episodes):
+        # Generate episode
+        episode = generate_episode(env, policy)
+
+        G = 0
+        # Range length is -1 for index 0 and -1 for T-1 hence -2
+        for t in range(len(episode)-2, 0, -1):
+            S_t = episode[t][0]
+            R_t_next = episode[t+1][2]
+
+            G = discount_factor * G + R_t_next
+
+            # Check if S_t appears in episode[0:t]
+            if not [True for S, A, R in episode[:t] if S == S_t]:
+                N[S_t] += 1
+                V[S_t] += (G - V[S_t]) / N[S_t]
+
+    return V
 
 
 def argmax(numpy_array):
     """ argmax implementation that chooses randomly between ties """
-    raise NotImplementedError
+    max_value = np.max(numpy_array)
+    max_indices = np.where(numpy_array == max_value)[0]
+    return np.random.choice(max_indices)
 
 
 def make_epsilon_greedy_policy(Q, epsilon, nA):
@@ -205,7 +261,12 @@ def make_epsilon_greedy_policy(Q, epsilon, nA):
 
     """
 
-    raise NotImplementedError
+    def policy_fn(observation):
+        if np.random.rand() < epsilon:
+            return np.random.randint(0, nA)
+
+        return argmax(Q[observation])
+
     return policy_fn
 
 
@@ -227,7 +288,35 @@ def mc_control_epsilon_greedy(env, num_episodes, discount_factor=1.0, epsilon=0.
         policy is a function that takes an observation as an argument and returns
         action probabilities
     """
-    raise NotImplementedError
+
+    Q = defaultdict(lambda: np.zeros(env.action_space.n))
+    N = defaultdict(lambda: np.zeros(env.action_space.n))
+
+    policy = make_epsilon_greedy_policy(
+        Q, epsilon=epsilon, nA=env.action_space.n)
+
+    for i_episode in trange(num_episodes):
+        # Generate episode
+        episode = generate_episode(env, policy)
+
+        G = 0
+        # Range length is -1 for index 0 and -1 for T-1 hence -2
+        for t in range(len(episode)-2, 0, -1):
+            S_t, A_t, R_t = episode[t]
+            _, _, R_t_next = episode[t+1]
+
+            G = discount_factor * G + R_t_next
+
+            # Check if S_t appears in episode[0:t]
+            if not [True for S, _, _ in episode[:t] if S == S_t]:
+                N[S_t][A_t] += 1
+                Q[S_t][A_t] += (G - Q[S_t][A_t]) / N[S_t][A_t]
+
+                # Update policy
+                policy = make_epsilon_greedy_policy(
+                    Q, epsilon=epsilon, nA=env.action_space.n)
+
+    return Q, policy
 
 
 def SARSA(env, num_episodes, discount_factor=1.0, epsilon=0.1, alpha=0.5, print_=False):
@@ -244,7 +333,7 @@ def SARSA(env, num_episodes, discount_factor=1.0, epsilon=0.1, alpha=0.5, print_
         print_: print every num of episodes - don't print anything if False
 
     Returns:
-        A tuple (Q, episode_lengths).
+        A tuple (Q, stats).
         Q is the optimal action-value function, a dictionary mapping state -> action values.
         stats is an EpisodeStats object with two numpy arrays for episode_lengths and episode_rewards.
     """
@@ -259,11 +348,30 @@ def SARSA(env, num_episodes, discount_factor=1.0, epsilon=0.1, alpha=0.5, print_
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
 
-    # Update statistics after getting a reward - use within loop, call the following lines
-    # stats.episode_rewards[i_episode] += reward
-    # stats.episode_lengths[i_episode] = t
+    for i_episode in trange(num_episodes):
+        # Initialize
+        observation, reward, done = env.reset()[0], 0, False
+        action = policy(observation)
 
-    raise NotImplementedError
+        while not done:
+            # Take action and observe next observation and reward
+            next_observation, reward, done, _, _ = env.step(action)
+
+            # Choose next action using policy
+            next_action = policy(next_observation)
+
+            Q[observation][action] += alpha * \
+                (reward + discount_factor *
+                 Q[next_observation][next_action] - Q[observation][action])
+
+            observation = next_observation
+            action = next_action
+
+            # Update statistics after getting a reward - use within loop, call the following lines
+            stats.episode_rewards[i_episode] += reward
+            stats.episode_lengths[i_episode] += 1
+
+    return Q, stats
 
 
 def q_learning(env, num_episodes, discount_factor=1.0, epsilon=0.05, alpha=0.5, print_=False):
@@ -296,15 +404,36 @@ def q_learning(env, num_episodes, discount_factor=1.0, epsilon=0.05, alpha=0.5, 
         episode_lengths=np.zeros(num_episodes),
         episode_rewards=np.zeros(num_episodes))
 
-    # Update statistics after getting a reward - use within loop, call the following lines
-    # stats.episode_rewards[i_episode] += reward
-    # stats.episode_lengths[i_episode] = t
+    for i_episode in trange(num_episodes):
+        # Initialize
+        observation, reward, done = env.reset()[0], 0, False
+
+        while not done:
+            # Choose action following policy
+            action = policy(observation)
+
+            # Take action and observe next observation and reward
+            next_observation, reward, done, _, _ = env.step(action)
+
+            discounted_next_value = discount_factor * \
+                np.max(Q[next_observation])
+
+            Q[observation][action] += alpha * \
+                (reward + discounted_next_value - Q[observation][action])
+
+            observation = next_observation
+
+            # Update statistics after getting a reward - use within loop, call the following lines
+            stats.episode_rewards[i_episode] += reward
+            stats.episode_lengths[i_episode] += 1
+
+    return Q, stats
 
 
 def run_mc():
     # Exploring the BlackjackEnv
-    # create env from https://gym.openai.com/envs/Blackjack-v0/
-    blackjack_env = gym.make('Blackjack-v0')
+    # create env from https://github.com/openai/gym/blob/master/gym/envs/toy_text/blackjack.py
+    blackjack_env = gym.make('Blackjack-v1')
     # let's see what's hidden inside this Object
     print(vars(blackjack_env))
 
@@ -314,13 +443,13 @@ def run_mc():
     #     the dealer's one showing card (1-10 where 1 is ace),
     #     and whether or not the player holds a usable ace (0 or 1).
     print('observation_space', blackjack_env.observation_space)
-    observation = blackjack_env.reset()
+    observation, _ = blackjack_env.reset()
     print('observation:', observation)
     # let's sample a random action
     random_action = blackjack_env.action_space.sample()
     print('random action:', random_action)
     # let's simulate one action
-    next_observation, reward, done, _ = blackjack_env.step(random_action)
+    next_observation, reward, done, _, _ = blackjack_env.step(random_action)
     print('next_observation:', next_observation)
     print('reward:', reward)
     print('done:', done)
@@ -355,6 +484,7 @@ def run_td():
 
     # create env : https://github.com/openai/gym/blob/master/gym/envs/toy_text/cliffwalking.py
     cliffwalking_env = gym.make('CliffWalking-v0')
+    cliffwalking_env.reset()
     cliffwalking_env.render()
 
     print('SARSA\n')
