@@ -1,3 +1,4 @@
+
 import random
 import numpy as np
 import gym
@@ -5,27 +6,35 @@ import gym
 from dqn.agent import DQNAgent
 from dqn.replay_buffer import ReplayBuffer
 from dqn.wrappers import *
+from utils.args import setup_args
 
-if __name__ == "__main__":
+try:
+    from tqdm import trange
+except Exception:
+    trange = range
 
-    hyper_params = {
-        "seed": 42,  # which seed to use
-        "env": "PongNoFrameskip-v4",  # name of the game
-        "replay-buffer-size": int(5e3),  # replay buffer size
-        "learning-rate": 1e-4,  # learning rate for Adam optimizer
-        "discount-factor": 0.99,  # discount factor
-        "num-steps": int(1e6),  # total number of steps to run the environment for
-        "batch-size": 256,  # number of transitions to optimize at the same time
-        "learning-starts": 10000,  # number of steps before learning starts
-        "learning-freq": 5,  # number of iterations between every optimization step
-        "use-double-dqn": True,  # use double deep Q-learning
-        "target-update-freq": 1000,  # number of iterations between every target network update
-        "eps-start": 1.0,  # e-greedy start threshold
-        "eps-end": 0.01,  # e-greedy end threshold
-        "eps-fraction": 0.1,  # fraction of num-steps
-        "print-freq": 10,
+
+def args_to_hyper_params(args):
+    return {
+        "seed": args['seed'],
+        "env": args['env'],
+        "replay-buffer-size": args['rbs'],
+        "learning-rate": args['l_rate'],
+        "discount-factor": args['discount'],
+        "num-steps": args['steps'],
+        "batch-size": args['batch'],
+        "learning-starts": args['l_starts'],
+        "learning-freq": args['l_freq'],
+        "use-double-dqn": args['double_dqn'],
+        "target-update-freq": args['t_freq'],
+        "eps-start": args['eps_start'],
+        "eps-end": args['eps_end'],
+        "eps-fraction": args['eps_frac'],
+        "print-freq": args['p_freq'],
     }
 
+
+def main(hyper_params):
     np.random.seed(hyper_params["seed"])
     random.seed(hyper_params["seed"])
 
@@ -37,35 +46,59 @@ if __name__ == "__main__":
     env = MaxAndSkipEnv(env, skip=4)
     env = EpisodicLifeEnv(env)
     env = FireResetEnv(env)
-    # TODO Pick Gym wrappers to use
-    #
-    #
-    #
+    
+    # Preprocess the frames to 84 x 84 x 4
+    env = WarpFrame(env)
+    
+    # Convert to torch type (Tensor) and shape (channel x height x width)
+    env = PyTorchFrame(env)
+    
+    print(f"states = {env.observation_space.shape}")
+    print(f"actions = {env.action_space.n}")
 
     replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"])
 
-    # TODO Create dqn agent
-    # agent = DQNAgent( ... )
+    agent = DQNAgent(observation_space=env.observation_space,
+                     action_space=env.action_space,
+                     replay_buffer=replay_buffer,
+                     use_double_dqn=hyper_params['use-double-dqn'],
+                     lr=hyper_params['learning-rate'],
+                     batch_size=hyper_params['batch-size'],
+                     gamma=hyper_params['discount-factor'])
 
-    eps_timesteps = hyper_params["eps-fraction"] * float(hyper_params["num-steps"])
+    eps_timesteps = hyper_params["eps-fraction"] * \
+        float(hyper_params["num-steps"])
     episode_rewards = [0.0]
 
-    state = env.reset()
-    for t in range(hyper_params["num-steps"]):
+    state, _ = env.reset()
+    for t in trange(hyper_params["num-steps"]):
         fraction = min(1.0, float(t) / eps_timesteps)
         eps_threshold = hyper_params["eps-start"] + fraction * (
             hyper_params["eps-end"] - hyper_params["eps-start"]
         )
-        sample = random.random()
-        # TODO
         #  select random action if sample is less equal than eps_threshold
+        if random.random() <= eps_threshold:
+            action = env.action_space.sample()
+        else:
+            action = agent.act(state)
+        
         # take step in env
-        # add state, action, reward, next_state, float(done) to reply memory - cast done to float
-        # add reward to episode_reward
+        next_state, reward, done, _, _ = env.step(action)
 
+        # add state, action, reward, next_state, float(done) to reply memory - cast done to float
+        replay_buffer.add(state=state,
+                          action=action,
+                          reward=reward,
+                          next_state=next_state,
+                          done=float(done))
+
+        # add reward to episode_reward
         episode_rewards[-1] += reward
+        
+        state = next_state
+
         if done:
-            state = env.reset()
+            state, _ = env.reset()
             episode_rewards.append(0.0)
 
         if (
@@ -94,3 +127,9 @@ if __name__ == "__main__":
             print("mean 100 episode reward: {}".format(mean_100ep_reward))
             print("% time spent exploring: {}".format(int(100 * eps_threshold)))
             print("********************************************************")
+
+
+if __name__ == "__main__":
+    args_vars = setup_args()
+    hyper_params = args_to_hyper_params(args_vars)
+    main(hyper_params=hyper_params)

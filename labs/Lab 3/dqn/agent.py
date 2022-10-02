@@ -1,10 +1,11 @@
 from gym import spaces
 import numpy as np
+import torch
 
 from dqn.model import DQN
 from dqn.replay_buffer import ReplayBuffer
 
-device = "cuda"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DQNAgent:
@@ -29,7 +30,14 @@ class DQNAgent:
         """
 
         # TODO: Initialise agent's networks, optimiser and replay buffer
-        raise NotImplementedError
+        self.policy_network = DQN(observation_space=observation_space, action_space=action_space).to(device)
+        self.target_network = DQN(observation_space=observation_space, action_space=action_space).to(device)
+        
+        self.optimizer = torch.optim.Adam(self.policy_network.parameters(), lr=lr)
+        
+        
+        self.replay_buffer = replay_buffer
+        
 
     def optimise_td_loss(self):
         """
@@ -57,5 +65,20 @@ class DQNAgent:
         :param state: the current state
         :return: the action to take
         """
-        # TODO Select action greedily from the Q-network given the state
-        raise NotImplementedError
+        x = torch.zeros((1, 4, 84, 84), dtype=torch.float32)
+        
+        # Last three frames
+        x[:,:-1,:,:] = torch.tensor(
+            self.replay_buffer._encode_sample([-3, -2, -1])[0][:,0,:,:])
+        # Last frame (state)
+        x[:,-1,:,:] = torch.tensor(state)
+        
+        # Normalize
+        x = x / 255
+        
+        # Q-values
+        q_values = self.policy_network(x).detach()
+        
+        # Greedy action (max)
+        action  = np.argmax(q_values)
+        return action.item()
