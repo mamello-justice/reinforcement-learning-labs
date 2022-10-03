@@ -1,3 +1,4 @@
+from datetime import datetime
 from gym import spaces
 import torch
 import torch.nn as nn
@@ -95,3 +96,16 @@ class DQNAgent:
         action  = torch.argmax(q_values, dim=1)
         
         return action[-1]
+    
+    def save(self):
+        print('saving models...')
+        path = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+        
+        torch.save(self.Q.state_dict(), f"data/{path}.torch")
+        torch.save(self.Q_target.state_dict(), f"data/{path}_target.torch")
+
+    
+    def load(self, path):
+        print('loading models...')
+        self.Q.load_state_dict(torch.load(f"{path}.torch"))
+        self.Q.load_state_dict(torch.load(f"{path}_target.torch"))

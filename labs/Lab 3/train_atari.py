@@ -33,14 +33,9 @@ def args_to_hyper_params(args):
         "eps-fraction": args['eps_frac'],
         "print-freq": args['p_freq'],
     }
-
-
-def main(hyper_params):
-    device = torch.device(hyper_params["device"])
-
-    np.random.seed(hyper_params["seed"])
-    random.seed(hyper_params["seed"])
-
+    
+    
+def init_env(hyper_params):
     assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
     env = gym.make(hyper_params["env"])
     env.seed(hyper_params["seed"])
@@ -59,18 +54,9 @@ def main(hyper_params):
     
     print(f"states = {env.observation_space.shape}")
     print(f"actions = {env.action_space.n}")
+    return env
 
-    replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"], device=device)
-
-    agent = DQNAgent(observation_space=env.observation_space,
-                     action_space=env.action_space,
-                     replay_buffer=replay_buffer,
-                     use_double_dqn=hyper_params['use-double-dqn'],
-                     lr=hyper_params['learning-rate'],
-                     batch_size=hyper_params['batch-size'],
-                     gamma=hyper_params['discount-factor'],
-                     device=device)
-
+def train(env, agent, replay_buffer, hyper_params):
     eps_timesteps = hyper_params["eps-fraction"] * \
         float(hyper_params["num-steps"])
     episode_rewards = [0.0]
@@ -134,9 +120,44 @@ def main(hyper_params):
             print("********************************************************")
 
 
+def main(hyper_params, args_vars):
+    device = torch.device(hyper_params["device"])
+
+    np.random.seed(hyper_params["seed"])
+    random.seed(hyper_params["seed"])
+    
+    env = init_env(hyper_params)
+    
+    replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"], device=device)
+
+    agent = DQNAgent(observation_space=env.observation_space,
+                     action_space=env.action_space,
+                     replay_buffer=replay_buffer,
+                     use_double_dqn=hyper_params['use-double-dqn'],
+                     lr=hyper_params['learning-rate'],
+                     batch_size=hyper_params['batch-size'],
+                     gamma=hyper_params['discount-factor'],
+                     device=device)
+    
+    
+    model_file = args_vars['model_file']
+    if model_file is not None:
+        try:
+            agent.load(model_file)
+        except FileNotFoundError:
+            pass
+
+    try:
+        train(env, agent, replay_buffer, hyper_params)
+    finally:
+        save_model = args_vars['save_model']
+        if save_model is not None:
+            agent.save()
+
+
 if __name__ == "__main__":
     default_device = "cuda" if torch.cuda.is_available() else "cpu"
     
     args_vars = setup_args(default_device=default_device)
     hyper_params = args_to_hyper_params(args_vars)
-    main(hyper_params=hyper_params)
+    main(hyper_params=hyper_params, args_vars=args_vars)

@@ -45,7 +45,7 @@ def setup_args(default_device):
                         default=5,
                         help='number of iterations between every optimization step')
     parser.add_argument('--double-dqn',
-                        type=argparse.BooleanOptionalAction,
+                        action=argparse.BooleanOptionalAction,
                         default=True,
                         help='whether to use double deep Q-learning (DDQN) @see https://arxiv.org/abs/1509.06461')
     parser.add_argument('--t-freq',
@@ -68,6 +68,13 @@ def setup_args(default_device):
                         type=int,
                         default=10,
                         help='frequency at which to print info/stats')
+    parser.add_argument('--model-file',
+                        type=str,
+                        help='path to file containing the model')
+    parser.add_argument('--save-model',
+                        default=False,
+                        action=argparse.BooleanOptionalAction,
+                        help='whether to save the model (make sure there is data dir')
 
     args = parser.parse_args()
     return vars(args)
