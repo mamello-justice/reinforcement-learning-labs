@@ -25,20 +25,15 @@ class DQN(nn.Module):
             type(action_space) == spaces.Discrete
         ), "action_space must be of type Discrete"
         
-        # 4 batch frames -> 16 features -> 32 features -> 32*9*9=2592 features -> 256 -> # actions
-        self.layer1 = nn.Sequential(nn.Conv2d(4, 16, kernel_size=8, stride=4, padding=0),
-                                    nn.ReLU())
-        self.layer2 = nn.Sequential(nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0),
-                                    nn.ReLU())
-        self.layer2_linear_size = 32*9*9
-        self.layer3 = nn.Sequential(nn.Linear(self.layer2_linear_size, 256),
-                                    nn.ReLU())
-        self.layer4 = nn.Linear(256, action_space.n)
+        # 1 channel -> 16 features -> 32 features -> 32*9*9=2592 features -> 256 -> # actions
+        self.model = nn.Sequential(nn.Conv2d(1, 16, kernel_size=8, stride=4, padding=0),
+                                    nn.ReLU(),
+                                    nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=0),
+                                    nn.ReLU(),
+                                    nn.Flatten(),
+                                    nn.Linear(32*9*9, 256),
+                                    nn.ReLU(),
+                                    nn.Linear(256, action_space.n))
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = x.view(-1, self.layer2_linear_size)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        return x
+        return self.model(x)

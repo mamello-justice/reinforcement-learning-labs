@@ -1,11 +1,10 @@
 from gym import spaces
-import numpy as np
 import torch
+import torch.nn as nn
 
 from dqn.model import DQN
 from dqn.replay_buffer import ReplayBuffer
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class DQNAgent:
@@ -18,6 +17,7 @@ class DQNAgent:
         lr,
         batch_size,
         gamma,
+        device,
     ):
         """
         Initialise the DQN algorithm using the Adam optimiser
@@ -28,14 +28,22 @@ class DQNAgent:
         :param batch_size: the batch size
         :param gamma: the discount factor
         """
+        
+        self.batch_size = batch_size
+        self.gamma = gamma
+        self.device = device
 
-        # TODO: Initialise agent's networks, optimiser and replay buffer
-        self.policy_network = DQN(observation_space=observation_space, action_space=action_space).to(device)
-        self.target_network = DQN(observation_space=observation_space, action_space=action_space).to(device)
+        # Q-networks
+        self.Q = DQN(observation_space=observation_space, action_space=action_space).to(self.device)
+        self.Q_target = DQN(observation_space=observation_space, action_space=action_space).to(self.device)
         
-        self.optimizer = torch.optim.Adam(self.policy_network.parameters(), lr=lr)
+        # Loss
+        self.loss = nn.MSELoss()
         
+        # Adam optimizer
+        self.optimizer = torch.optim.Adam(self.Q.parameters(), lr=lr)
         
+        # Replay buffer/memory
         self.replay_buffer = replay_buffer
         
 
@@ -44,41 +52,46 @@ class DQNAgent:
         Optimise the TD-error over a single minibatch of transitions
         :return: the loss
         """
-        # TODO
-        #   Optimise the TD-error over a single minibatch of transitions
-        #   Sample the minibatch from the replay-memory
-        #   using done (as a float) instead of if statement
-        #   return loss
-
-        raise NotImplementedError
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
+        
+        with torch.no_grad(): # Not used in gradient calculation
+            values_target = self.Q_target(next_states).max(dim=1, keepdim=True)[0].flatten()
+            target = rewards + self.gamma * values_target * (1 - dones)   
+        
+        prediction = self.Q(states).gather(dim=1, index=actions.reshape((-1, 1))).flatten()
+        
+        loss = self.loss(prediction, target).to(self.device)
+        
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     def update_target_network(self):
         """
         Update the target Q-network by copying the weights from the current Q-network
         """
-        # TODO update target_network parameters with policy_network parameters
-        raise NotImplementedError
+        for target, policy in zip(self.Q_target.parameters(), self.Q.parameters()):
+            target.data.copy_(policy.data)
 
-    def act(self, state: np.ndarray):
+    def act(self, state: torch.Tensor):
         """
         Select an action greedily from the Q-network given the state
         :param state: the current state
         :return: the action to take
         """
-        x = torch.zeros((1, 4, 84, 84), dtype=torch.float32)
+        # Last four frames (states)
+        x, _, _, _, _ = self.replay_buffer._encode_sample([-4, -3, -2, -1])
         
-        # Last three frames
-        x[:,:-1,:,:] = torch.tensor(
-            self.replay_buffer._encode_sample([-3, -2, -1])[0][:,0,:,:])
-        # Last frame (state)
-        x[:,-1,:,:] = torch.tensor(state)
+        # Replace first frame (state)
+        x[-1,:,:,:] = state
         
         # Normalize
         x = x / 255
         
         # Q-values
-        q_values = self.policy_network(x).detach()
+        q_values = self.Q(x).detach()
         
         # Greedy action (max)
-        action  = np.argmax(q_values)
-        return action.item()
+        action  = torch.argmax(q_values, dim=1)
+        
+        return action[-1]

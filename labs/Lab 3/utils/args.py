@@ -1,9 +1,13 @@
 import argparse
 
 
-def setup_args():
+def setup_args(default_device):
     parser = argparse.ArgumentParser(
         description=f'Deep Q-Learning (DQN) @see https://arxiv.org/abs/1312.5602')
+    parser.add_argument('--device',
+                        type=str,
+                        default=default_device,
+                        help='device to use for running models (default: %(default)s)')
     parser.add_argument('--seed',
                         type=int,
                         default=42,

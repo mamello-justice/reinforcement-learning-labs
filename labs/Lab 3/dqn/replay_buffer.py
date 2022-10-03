@@ -1,12 +1,12 @@
 import numpy as np
-
+import torch
 
 class ReplayBuffer:
     """
     Simple storage for transitions from an environment.
     """
 
-    def __init__(self, size):
+    def __init__(self, size, device):
         """
         Initialise a buffer of a given size for storing transitions
         :param size: the maximum number of transitions that can be stored
@@ -14,6 +14,7 @@ class ReplayBuffer:
         self._storage = []
         self._maxsize = size
         self._next_idx = 0
+        self.device = device
 
     def __len__(self):
         return len(self._storage)
@@ -45,12 +46,13 @@ class ReplayBuffer:
             rewards.append(reward)
             next_states.append(np.array(next_state, copy=False))
             dones.append(done)
+
         return (
-            np.array(states),
-            np.array(actions),
-            np.array(rewards),
-            np.array(next_states),
-            np.array(dones),
+            torch.tensor(np.array(states), dtype=torch.float32).to(self.device),
+            torch.tensor(actions, dtype=torch.long).to(self.device),
+            torch.tensor(rewards, dtype=torch.float32).to(self.device),
+            torch.tensor(np.array(next_states), dtype=torch.float32).to(self.device),
+            torch.tensor(dones, dtype=torch.float32).to(self.device),
         )
 
     def sample(self, batch_size):

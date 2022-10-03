@@ -1,6 +1,6 @@
-
 import random
 import numpy as np
+import torch
 import gym
 
 from dqn.agent import DQNAgent
@@ -16,6 +16,7 @@ except Exception:
 
 def args_to_hyper_params(args):
     return {
+        "device": args['device'],
         "seed": args['seed'],
         "env": args['env'],
         "replay-buffer-size": args['rbs'],
@@ -35,6 +36,8 @@ def args_to_hyper_params(args):
 
 
 def main(hyper_params):
+    device = torch.device(hyper_params["device"])
+
     np.random.seed(hyper_params["seed"])
     random.seed(hyper_params["seed"])
 
@@ -46,6 +49,7 @@ def main(hyper_params):
     env = MaxAndSkipEnv(env, skip=4)
     env = EpisodicLifeEnv(env)
     env = FireResetEnv(env)
+    env = ClipRewardEnv(env)
     
     # Preprocess the frames to 84 x 84 x 4
     env = WarpFrame(env)
@@ -56,7 +60,7 @@ def main(hyper_params):
     print(f"states = {env.observation_space.shape}")
     print(f"actions = {env.action_space.n}")
 
-    replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"])
+    replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"], device=device)
 
     agent = DQNAgent(observation_space=env.observation_space,
                      action_space=env.action_space,
@@ -64,7 +68,8 @@ def main(hyper_params):
                      use_double_dqn=hyper_params['use-double-dqn'],
                      lr=hyper_params['learning-rate'],
                      batch_size=hyper_params['batch-size'],
-                     gamma=hyper_params['discount-factor'])
+                     gamma=hyper_params['discount-factor'],
+                     device=device)
 
     eps_timesteps = hyper_params["eps-fraction"] * \
         float(hyper_params["num-steps"])
@@ -80,7 +85,7 @@ def main(hyper_params):
         if random.random() <= eps_threshold:
             action = env.action_space.sample()
         else:
-            action = agent.act(state)
+            action = agent.act(torch.tensor(state))
         
         # take step in env
         next_state, reward, done, _, _ = env.step(action)
@@ -130,6 +135,8 @@ def main(hyper_params):
 
 
 if __name__ == "__main__":
-    args_vars = setup_args()
+    default_device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    args_vars = setup_args(default_device=default_device)
     hyper_params = args_to_hyper_params(args_vars)
     main(hyper_params=hyper_params)
