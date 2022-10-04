@@ -75,6 +75,10 @@ def setup_args(default_device):
                         default=False,
                         action=argparse.BooleanOptionalAction,
                         help='whether to save the model (make sure there is data dir')
+    parser.add_argument('--visualize',
+                        default=False,
+                        action=argparse.BooleanOptionalAction,
+                        help='whether to render for human mode or not')
 
     args = parser.parse_args()
     return vars(args)

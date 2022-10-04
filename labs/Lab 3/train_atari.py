@@ -35,9 +35,12 @@ def args_to_hyper_params(args):
     }
     
     
-def init_env(hyper_params):
+def init_env(hyper_params, args_vars):
     assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
-    env = gym.make(hyper_params["env"])
+    if args_vars['visualize']:
+        env = gym.make(hyper_params["env"], render_mode='human')
+    else:
+        env = gym.make(hyper_params["env"])
     env.seed(hyper_params["seed"])
 
     env = NoopResetEnv(env, noop_max=30)
@@ -126,7 +129,7 @@ def main(hyper_params, args_vars):
     np.random.seed(hyper_params["seed"])
     random.seed(hyper_params["seed"])
     
-    env = init_env(hyper_params)
+    env = init_env(hyper_params, args_vars)
     
     replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"], device=device)
 
