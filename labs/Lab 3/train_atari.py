@@ -143,19 +143,19 @@ def main(hyper_params, args_vars):
                      device=device)
     
     
-    model_file = args_vars['model_file']
-    if model_file is not None:
+    in_file = args_vars['in']
+    if in_file is not None:
         try:
-            agent.load(model_file)
+            agent.load(in_file)
         except FileNotFoundError:
             pass
 
     try:
         train(env, agent, replay_buffer, hyper_params)
     finally:
-        save_model = args_vars['save_model']
-        if save_model is not None:
-            agent.save()
+        out_file = args_vars['out']
+        if out_file is not None:
+            agent.save(out_file)
 
 
 if __name__ == "__main__":

@@ -68,13 +68,12 @@ def setup_args(default_device):
                         type=int,
                         default=10,
                         help='frequency at which to print info/stats')
-    parser.add_argument('--model-file',
+    parser.add_argument('--out',
                         type=str,
-                        help='path to file containing the model')
-    parser.add_argument('--save-model',
-                        default=False,
-                        action=argparse.BooleanOptionalAction,
-                        help='whether to save the model (make sure there is data dir')
+                        help='path to model file')
+    parser.add_argument('--in',
+                        type=str,
+                        help='path to model file')
     parser.add_argument('--visualize',
                         default=False,
                         action=argparse.BooleanOptionalAction,

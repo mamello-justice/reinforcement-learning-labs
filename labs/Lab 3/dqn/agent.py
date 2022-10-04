@@ -97,15 +97,34 @@ class DQNAgent:
         
         return action[-1]
     
-    def save(self):
+    def save(self, path):
         print('saving models...')
-        path = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
         
-        torch.save(self.Q.state_dict(), f"data/{path}.torch")
-        torch.save(self.Q_target.state_dict(), f"data/{path}_target.torch")
+        checkpoint = {
+            'Q': self.Q.state_dict(),
+            'Q_target': self.Q_target.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'loss': self.loss,
+            'replay_buffer': self.replay_buffer._storage
+        }
+        
+        torch.save(checkpoint, path)
 
     
     def load(self, path):
         print('loading models...')
-        self.Q.load_state_dict(torch.load(f"{path}.torch"))
-        self.Q.load_state_dict(torch.load(f"{path}_target.torch"))
+        
+        checkpoint = torch.load(path)
+        
+        self.Q.load_state_dict(checkpoint.get('Q'), map_location=self.device)
+        self.Q.train()
+        
+        self.Q_target.load_state_dict(checkpoint.get('Q_target'), map_location=self.device)
+        self.Q_target.train()
+        
+        self.optimizer.load_state_dict(checkpoint.get('optimizer'))
+        
+        self.loss = checkpoint.get('loss')
+        
+        self.replay_buffer._storage = checkpoint.get('replay_buffer')
+        self.replay_buffer._next_idx = len(self.replay_buffer._storage) % self.replay_buffer._maxsize
