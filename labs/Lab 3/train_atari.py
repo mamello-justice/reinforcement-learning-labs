@@ -33,8 +33,8 @@ def args_to_hyper_params(args):
         "eps-fraction": args['eps_frac'],
         "print-freq": args['p_freq'],
     }
-    
-    
+
+
 def init_env(hyper_params, args_vars):
     assert "NoFrameskip" in hyper_params["env"], "Require environment with no frameskip"
     if args_vars['visualize']:
@@ -48,16 +48,17 @@ def init_env(hyper_params, args_vars):
     env = EpisodicLifeEnv(env)
     env = FireResetEnv(env)
     env = ClipRewardEnv(env)
-    
+
     # Preprocess the frames to 84 x 84 x 4
     env = WarpFrame(env)
-    
+
     # Convert to torch type (Tensor) and shape (channel x height x width)
     env = PyTorchFrame(env)
-    
+
     print(f"states = {env.observation_space.shape}")
     print(f"actions = {env.action_space.n}")
     return env
+
 
 def train(env, agent, replay_buffer, hyper_params):
     eps_timesteps = hyper_params["eps-fraction"] * \
@@ -75,7 +76,7 @@ def train(env, agent, replay_buffer, hyper_params):
             action = env.action_space.sample()
         else:
             action = agent.act(torch.tensor(state))
-        
+
         # take step in env
         next_state, reward, done, _, _ = env.step(action)
 
@@ -88,7 +89,7 @@ def train(env, agent, replay_buffer, hyper_params):
 
         # add reward to episode_reward
         episode_rewards[-1] += reward
-        
+
         state = next_state
 
         if done:
@@ -128,10 +129,11 @@ def main(hyper_params, args_vars):
 
     np.random.seed(hyper_params["seed"])
     random.seed(hyper_params["seed"])
-    
+
     env = init_env(hyper_params, args_vars)
-    
-    replay_buffer = ReplayBuffer(hyper_params["replay-buffer-size"], device=device)
+
+    replay_buffer = ReplayBuffer(
+        hyper_params["replay-buffer-size"], device=device)
 
     agent = DQNAgent(observation_space=env.observation_space,
                      action_space=env.action_space,
@@ -141,8 +143,7 @@ def main(hyper_params, args_vars):
                      batch_size=hyper_params['batch-size'],
                      gamma=hyper_params['discount-factor'],
                      device=device)
-    
-    
+
     in_file = args_vars['in']
     if in_file is not None:
         try:
@@ -160,7 +161,7 @@ def main(hyper_params, args_vars):
 
 if __name__ == "__main__":
     default_device = "cuda" if torch.cuda.is_available() else "cpu"
-    
+
     args_vars = setup_args(default_device=default_device)
     hyper_params = args_to_hyper_params(args_vars)
     main(hyper_params=hyper_params, args_vars=args_vars)

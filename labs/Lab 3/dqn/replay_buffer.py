@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 class ReplayBuffer:
     """
     Simple storage for transitions from an environment.
@@ -48,10 +49,12 @@ class ReplayBuffer:
             dones.append(done)
 
         return (
-            torch.tensor(np.array(states), dtype=torch.float32).to(self.device),
+            torch.tensor(np.array(states), dtype=torch.float32).to(
+                self.device),
             torch.tensor(actions, dtype=torch.long).to(self.device),
             torch.tensor(rewards, dtype=torch.float32).to(self.device),
-            torch.tensor(np.array(next_states), dtype=torch.float32).to(self.device),
+            torch.tensor(np.array(next_states),
+                         dtype=torch.float32).to(self.device),
             torch.tensor(dones, dtype=torch.float32).to(self.device),
         )
 
