@@ -84,6 +84,10 @@ def setup_args(default_device):
                         type=int,
                         default=10,
                         help='frequency at which to log stats')
+    parser.add_argument('--log-weights',
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help='log network weights (NB: this slows down learning significantly)')
     parser.add_argument('--log-dir',
                         type=str,
                         help='path at which to log stats')
@@ -185,7 +189,8 @@ if __name__ == "__main__":
                      batch_size=hyper_params['batch-size'],
                      gamma=hyper_params['discount-factor'],
                      device=device,
-                     log_dir=args_vars['log_dir'])
+                     log_dir=args_vars['log_dir'],
+                     log_weights=args_vars['log_weights'])
 
     in_file = args_vars.get('in')
     if in_file is not None:

@@ -7,13 +7,14 @@ from dqn.replay_buffer import ReplayBuffer
 
 
 class DQNAgent:
-    def __init__(self, env, memory_size, use_double_dqn, lr, batch_size, gamma, device, log_dir):
+    def __init__(self, env, memory_size, use_double_dqn, lr, batch_size, gamma, device, log_dir, log_weights):
         self.num_actions = env.action_space.n
         self.batch_size = batch_size
         self.gamma = gamma
         self.device = device
         self.use_double_dqn = use_double_dqn
         self.episode_rewards = [0.0]
+        self.should_log_weights = log_weights
 
         # Tensorboard
         self.tb_w = tb.SummaryWriter(log_dir)
@@ -89,13 +90,10 @@ class DQNAgent:
 
         # Log to tensorboard
         self.tb_w.add_scalar("Loss", loss.item(), self.idx)
-        for name, weight in self.Q.named_parameters():
-            self.tb_w.add_histogram('Q-%s' % name, weight, self.idx)
-            self.tb_w.add_histogram('Q-%s.grad' % name, weight, self.idx)
 
-        for name, weight in self.Q_target.named_parameters():
-            self.tb_w.add_histogram('Q-target-%s' % name, weight, self.idx)
-            self.tb_w.add_histogram('Q-target-%s' % name, weight, self.idx)
+        if self.should_log_weights:
+            # Expensive comp
+            self.log_weights()
 
         self.idx += 1
 
@@ -135,6 +133,15 @@ class DQNAgent:
         with torch.no_grad():
             # Greedy action (max)
             return self.Q(batch).argmax(dim=1, keepdim=True)[1].view(1, 1)
+
+    def log_weights(self):
+        for name, weight in self.Q.named_parameters():
+            self.tb_w.add_histogram('Q-%s' % name, weight, self.idx)
+            self.tb_w.add_histogram('Q-%s.grad' % name, weight, self.idx)
+
+        for name, weight in self.Q_target.named_parameters():
+            self.tb_w.add_histogram('Q-target-%s' % name, weight, self.idx)
+            self.tb_w.add_histogram('Q-target-%s' % name, weight, self.idx)
 
     def log(self, t):
         self.tb_w.add_scalar("Episodes", self.num_episodes(), t)
