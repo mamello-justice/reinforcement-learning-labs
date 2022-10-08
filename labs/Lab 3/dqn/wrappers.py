@@ -2,7 +2,6 @@
 Useful wrappers taken from OpenAI (https://github.com/openai/baselines)
 """
 
-from math import trunc
 import numpy as np
 from collections import deque
 import gym
