@@ -157,11 +157,13 @@ class TrainingEnvironment:
 
 
 def get_epsilon_threshold(t, hyper_params):
-    diff = hyper_params['eps-end'] - hyper_params['eps-start']
-    fraction = float(t) / hyper_params['eps-fraction'] * \
-        float(hyper_params['num-steps'])
-    fraction = min(1.0, fraction)
-    return hyper_params['eps-start'] + fraction * diff
+    eps_end = hyper_params['eps-end']
+    eps_start = hyper_params['eps-start']
+    eps_fraction = hyper_params['eps-fraction']
+    steps = hyper_params['num-steps']
+
+    fraction = min(1.0, float(t) / eps_fraction * float(steps))
+    return eps_start + fraction * (eps_end - eps_start)
 
 
 if __name__ == "__main__":
